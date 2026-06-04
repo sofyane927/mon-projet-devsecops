@@ -126,9 +126,39 @@ jobs:
         if: always()
         run: docker rm -f gatling-web
 
+  security-headers:
+    name: Test de sécurité des en-têtes HTTP
+    needs: build-and-scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v4
+
+      - name: Build de l'image Docker
+        run: docker build -t mon-projet-web:${{ github.sha }} .
+
+      - name: Démarrage du conteneur
+        run: |
+          docker run -d --name headers-web -p 8080:80 mon-projet-web:${{ github.sha }}
+          # Attente que le serveur réponde (jusqu'à ~20s)
+          for i in $(seq 1 10); do
+            if curl -sf http://localhost:8080/ > /dev/null; then echo "Conteneur prêt"; break; fi
+            echo "En attente du conteneur..."; sleep 2
+          done
+
+      - name: Vérification des en-têtes de sécurité (OWASP)
+        run: |
+          chmod +x tests/security/check-headers.sh
+          ./tests/security/check-headers.sh http://localhost:8080
+
+      - name: Arrêt du conteneur
+        if: always()
+        run: docker rm -f headers-web
+
   deploy:
     name: Déploiement
-    needs: [ build-and-scan, performance-test, gatling-test ]
+    needs: [ build-and-scan, performance-test, gatling-test, security-headers ]
     runs-on: ubuntu-latest
     # Déploiement uniquement sur la branche main
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
