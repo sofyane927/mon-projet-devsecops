@@ -1,6 +1,9 @@
 # Image de base officielle et légère (Alpine), version épinglée pour la sécurité
 FROM nginx:1.27-alpine
 
+# Configuration Nginx personnalisée (sendfile off, etc.)
+COPY default.conf /etc/nginx/conf.d/default.conf
+
 # Copie de la page statique dans le répertoire servi par Nginx
 COPY index.html /usr/share/nginx/html/index.html
 
