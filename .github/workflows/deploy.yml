@@ -39,7 +39,7 @@ jobs:
           docker rm -f test-web
 
   performance-test:
-    name: Tests de performance (k6 + bombardier)
+    name: Tests de performance (k6 + hey)
     needs: build-and-scan
     runs-on: ubuntu-latest
 
@@ -65,24 +65,18 @@ jobs:
       - name: Lancement du test de performance k6
         run: k6 run -e BASE_URL=http://localhost:8080 tests/performance/load-test.js
 
-      # --- bombardier : test de charge brut (haut débit) ---
-      - name: Installation de bombardier
-        env:
-          BOMBARDIER_VERSION: v2.0.2
+      # --- hey : test de charge brut (haut débit) ---
+      - name: Installation de hey
         run: |
-          curl -fsSL -o bombardier \
-            "https://github.com/codesenberg/bombardier/releases/download/${BOMBARDIER_VERSION}/bombardier-linux-amd64"
-          chmod +x bombardier
-          sudo mv bombardier /usr/local/bin/bombardier
-          bombardier --version || true
+          # Go est préinstallé sur les runners ubuntu-latest
+          go install github.com/rakyll/hey@latest
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
-      - name: Test de charge bombardier
+      - name: Test de charge hey
         run: |
-          # 50 connexions pendant 20s, test de débit brut + latences (rapport seulement).
+          # 50 workers pendant 20s, test de débit brut + latences (rapport seulement).
           # NB : le garde-fou qui bloque le pipeline reste le job k6 (seuils p95 / taux d'erreurs).
-          bombardier -c 50 -d 20s -l \
-            --print=result \
-            http://localhost:8080
+          hey -z 20s -c 50 http://localhost:8080
 
       - name: Arrêt du conteneur
         if: always()
