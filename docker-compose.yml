@@ -1,0 +1,16 @@
+services:
+  web:
+    build: .
+    image: mon-projet-web:latest
+    container_name: mon-projet-web
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    # Bonnes pratiques de sécurité de base
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp

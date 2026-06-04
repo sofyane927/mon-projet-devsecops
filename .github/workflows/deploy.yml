@@ -1,0 +1,56 @@
+name: CI/CD DevSecOps
+
+# Déclenchement sur push et pull request sur la branche principale
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-scan:
+    name: Build & Scan de sécurité
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Récupération du code
+      - name: Checkout du dépôt
+        uses: actions/checkout@v4
+
+      # 2. Construction de l'image Docker
+      - name: Build de l'image Docker
+        run: docker build -t mon-projet-web:${{ github.sha }} .
+
+      # 3. Scan de vulnérabilités de l'image avec Trivy (sécurité)
+      - name: Scan de sécurité avec Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: mon-projet-web:${{ github.sha }}
+          format: table
+          exit-code: 0          # mettre 1 pour bloquer en cas de vulnérabilité critique
+          severity: CRITICAL,HIGH
+
+      # 4. Test rapide : le conteneur démarre et répond
+      - name: Test de démarrage du conteneur
+        run: |
+          docker run -d --name test-web -p 8080:80 mon-projet-web:${{ github.sha }}
+          sleep 5
+          curl -f http://localhost:8080/ || (docker logs test-web && exit 1)
+          docker rm -f test-web
+
+  deploy:
+    name: Déploiement
+    needs: build-and-scan
+    runs-on: ubuntu-latest
+    # Déploiement uniquement sur la branche main
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v4
+
+      - name: Étape de déploiement (exemple)
+        run: |
+          echo "🚀 Déploiement de l'application..."
+          echo "Ici, ajoute tes commandes de déploiement réelles"
+          echo "(ex: push vers un registre, déploiement sur un serveur, etc.)"
