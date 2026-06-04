@@ -88,9 +88,53 @@ jobs:
         if: always()
         run: docker rm -f perf-web
 
+  gatling-test:
+    name: Test de performance (Gatling)
+    needs: build-and-scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v4
+
+      - name: Build de l'image Docker
+        run: docker build -t mon-projet-web:${{ github.sha }} .
+
+      - name: Démarrage du conteneur
+        run: |
+          docker run -d --name gatling-web -p 8080:80 mon-projet-web:${{ github.sha }}
+          # Attente que le serveur réponde (jusqu'à ~20s)
+          for i in $(seq 1 10); do
+            if curl -sf http://localhost:8080/ > /dev/null; then echo "Conteneur prêt"; break; fi
+            echo "En attente du conteneur..."; sleep 2
+          done
+
+      - name: Installation de Java (Temurin 17)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Lancement du test de performance Gatling
+        working-directory: tests/gatling
+        run: mvn -B gatling:test "-DbaseUrl=http://localhost:8080" "-Dgatling.simulationClass=BasicSimulation"
+
+      - name: Publication du rapport Gatling
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapport-gatling
+          path: tests/gatling/target/gatling/**
+          if-no-files-found: ignore
+
+      - name: Arrêt du conteneur
+        if: always()
+        run: docker rm -f gatling-web
+
   deploy:
     name: Déploiement
-    needs: [ build-and-scan, performance-test ]
+    needs: [ build-and-scan, performance-test, gatling-test ]
     runs-on: ubuntu-latest
     # Déploiement uniquement sur la branche main
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
