@@ -166,9 +166,37 @@ jobs:
         if: always()
         run: docker rm -f headers-web
 
+  proxy-rules:
+    name: Test des règles du reverse proxy (LB / méthodes / rate-limit / WAF)
+    needs: build-and-scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v4
+
+      - name: Démarrage de la stack (proxy + 2 backends)
+        run: docker compose up -d --build
+
+      - name: Attente du démarrage (warmup)
+        run: sleep 20
+
+      - name: Tests des 4 règles du reverse proxy
+        run: |
+          chmod +x tests/security/check-proxy-rules.sh
+          ./tests/security/check-proxy-rules.sh http://localhost:8080
+
+      - name: Logs de la stack en cas d'échec
+        if: failure()
+        run: docker compose logs
+
+      - name: Arrêt de la stack
+        if: always()
+        run: docker compose down
+
   deploy:
     name: Déploiement
-    needs: [ build-and-scan, performance-test, gatling-test, security-headers ]
+    needs: [ build-and-scan, performance-test, gatling-test, security-headers, proxy-rules ]
     runs-on: ubuntu-latest
     # Déploiement uniquement sur la branche main
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
