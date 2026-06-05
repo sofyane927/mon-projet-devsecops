@@ -1,0 +1,40 @@
+# Challenge 6 : Traefik en reverse proxy + load balancer vers 2 conteneurs web.
+#
+#   client :8090 ──> Traefik ──┬──> whoami1
+#                              └──> whoami2
+#
+# Lancer  : docker compose -f docker-compose.traefik.yml up -d
+# Arrêter : docker compose -f docker-compose.traefik.yml down
+
+services:
+  # --- Reverse proxy Traefik ---
+  traefik:
+    image: traefik:v3.3
+    container_name: traefik
+    ports:
+      - "8090:80"            # point d'entrée "web"
+    volumes:
+      # Config statique + dossier de config dynamique (lecture seule)
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic:/etc/traefik/dynamic:ro
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+  # --- Backend web n°1 ---
+  whoami1:
+    image: traefik/whoami
+    container_name: whoami1
+    hostname: whoami1
+    environment:
+      - WHOAMI_NAME=whoami1
+    restart: unless-stopped
+
+  # --- Backend web n°2 ---
+  whoami2:
+    image: traefik/whoami
+    container_name: whoami2
+    hostname: whoami2
+    environment:
+      - WHOAMI_NAME=whoami2
+    restart: unless-stopped

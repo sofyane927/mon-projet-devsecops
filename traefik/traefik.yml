@@ -1,0 +1,24 @@
+# ============================================================
+#  Configuration STATIQUE de Traefik (lue une fois au démarrage)
+# ============================================================
+
+# Points d'entrée : ports sur lesquels Traefik écoute le trafic.
+entryPoints:
+  web:
+    address: ":80"
+
+# API + dashboard de Traefik.
+# Le dashboard sera exposé via un router sécurisé (étapes 3 et 4),
+# et non via le mode "insecure".
+api:
+  dashboard: true
+
+# Fournisseurs de configuration DYNAMIQUE.
+providers:
+  file:
+    directory: /etc/traefik/dynamic   # tout fichier .yml ici = config dynamique
+    watch: true                       # rechargement à chaud quand un fichier change
+
+log:
+  level: INFO
+accessLog: {}

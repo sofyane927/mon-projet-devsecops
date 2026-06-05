@@ -1,0 +1,51 @@
+# ============================================================
+#  Configuration DYNAMIQUE de Traefik (rechargée à chaud)
+# ============================================================
+http:
+  # --- Routers : à quelle requête correspond quel service ---
+  routers:
+    # Router applicatif : tout le trafic web part vers nos 2 backends.
+    # Priorité basse : c'est le "fourre-tout".
+    web-router:
+      rule: "PathPrefix(`/`)"
+      priority: 1
+      entryPoints:
+        - web
+      service: web-service
+      middlewares:
+        - ratelimit-ip            # limite le débit par IP
+
+    # Router du DASHBOARD Traefik (service interne api@internal).
+    # Priorité haute : /dashboard et /api sont captés ici avant web-router.
+    dashboard-router:
+      rule: "PathPrefix(`/dashboard`) || PathPrefix(`/api`)"
+      priority: 100
+      entryPoints:
+        - web
+      service: api@internal
+      middlewares:
+        - dashboard-auth          # protège le dashboard par mot de passe
+
+  # --- Services : vers quels backends, avec load balancing ---
+  services:
+    web-service:
+      loadBalancer:
+        servers:
+          - url: "http://whoami1:80"
+          - url: "http://whoami2:80"
+
+  # --- Middlewares ---
+  middlewares:
+    # Authentification basique (Basic Auth) pour le dashboard.
+    # Identifiants de démo : admin / traefik123 (hash bcrypt).
+    dashboard-auth:
+      basicAuth:
+        users:
+          - 'admin:$2y$05$xP7amXWjuNvgugepliRDXOWSWP6eDPd3X8wWUEGuzsOguANQKM1Iy'
+
+    # Rate limiting : 10 requêtes/minute par IP source (burst de 10), sinon 429.
+    ratelimit-ip:
+      rateLimit:
+        average: 10
+        period: 1m
+        burst: 10
