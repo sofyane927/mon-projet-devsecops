@@ -21,14 +21,24 @@ jobs:
       - name: Build de l'image Docker
         run: docker build -t mon-projet-web:${{ github.sha }} .
 
-      # 3. Scan de vulnérabilités de l'image avec Trivy (sécurité)
-      - name: Scan de sécurité avec Trivy
+      # 3a. Scan Trivy — inventaire complet (non bloquant, pour visibilité)
+      - name: Scan de sécurité Trivy (rapport)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: mon-projet-web:${{ github.sha }}
           format: table
-          exit-code: 0          # mettre 1 pour bloquer en cas de vulnérabilité critique
-          severity: CRITICAL,HIGH
+          exit-code: 0
+          severity: CRITICAL,HIGH,MEDIUM
+
+      # 3b. Scan Trivy — BLOQUANT : échoue le pipeline si une CRITICAL est trouvée
+      - name: Blocage si vulnérabilité CRITICAL
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: mon-projet-web:${{ github.sha }}
+          format: table
+          exit-code: 1            # 1 = fait échouer le job
+          severity: CRITICAL       # on ne bloque que sur les CRITICAL
+          ignore-unfixed: false
 
       # 4. Test rapide : le conteneur démarre et répond
       - name: Test de démarrage du conteneur

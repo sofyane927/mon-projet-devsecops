@@ -1,5 +1,7 @@
-# Image de base officielle et légère (Alpine), version épinglée pour la sécurité
-FROM nginx:1.27-alpine
+# Image de base officielle et légère (Alpine), version épinglée pour la sécurité.
+# Mise à jour vers une base Alpine plus récente pour corriger CVE-2026-31789
+# (OpenSSL < 3.3.7-r0, CRITICAL).
+FROM nginx:1.29-alpine
 
 # Configuration Nginx personnalisée (sendfile off, etc.)
 COPY default.conf /etc/nginx/conf.d/default.conf
